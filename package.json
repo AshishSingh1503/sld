@@ -10,7 +10,9 @@
     "build:android": "eas build --platform android",
     "build:ios": "eas build --platform ios",
     "prebuild": "expo prebuild",
-    "clean": "expo install --fix"
+    "clean": "expo install --fix",
+    "setup-db": "node scripts/setup-mongodb.js",
+    "dev": "npm run setup-db && npm start"
   },
   "dependencies": {
     "@expo/cli": "^0.24.20",
@@ -22,7 +24,7 @@
     "@react-native-voice/voice": "^3.2.4",
     "@react-navigation/native": "^7.1.6",
     "@react-navigation/stack": "^7.4.3",
-    "@supabase/supabase-js": "^2.52.1",
+    "expo-sqlite": "~13.4.0",
     "dotenv": "^17.2.1",
     "expo": "53.0.20",
     "expo-2d-context": "^0.0.4",

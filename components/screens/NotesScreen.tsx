@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import type { InsertedShape } from '../features/DigitalInkCanvas';
 import Slider from '@react-native-community/slider';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { voiceRecognitionService, VoiceRecognitionCallbacks } from '../features/VoiceRecognitionService';
+import { notesService } from '../../services/notesService';
  
 // A4 aspect ratio
 const A4_ASPECT_RATIO = 1 / Math.sqrt(2);
@@ -63,6 +65,11 @@ export default function NotesScreen({ initialNotes = [], onBack, onSave, onNoteC
   const [wordGapMs, setWordGapMs] = useState(1200);
   const [pendingText, setPendingText] = useState('');
   const lastRecognizedRef = useRef('');
+  
+  // Voice recognition state
+  const [isListening, setIsListening] = useState(false);
+  const [voiceText, setVoiceText] = useState('');
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
 
   // Pen color and width state
   const [penColor, setPenColor] = useState('#222');
@@ -141,20 +148,94 @@ export default function NotesScreen({ initialNotes = [], onBack, onSave, onNoteC
   };
 
   // Save all pages as part of the note
-  const handleSave = () => {
-    const currentNote = initialNotes?.[0];
-    if (onSave && currentNote && currentNote.folderId && currentNote.id) {
-      // Save all pages as JSON string
-      const allPagesData = JSON.stringify(pages.map(page => page.strokes));
-      onSave(allPagesData, currentNote.folderId, Number(currentNote.id));
-    } else {
-      Alert.alert("Save Error", "Cannot save note. Missing folder or note ID.");
+  const handleSave = async () => {
+    try {
+      const currentNote = initialNotes?.[0];
+      if (currentNote && currentNote.folderId && currentNote.id) {
+        // Save all pages as JSON string
+        const allPagesData = JSON.stringify(pages.map(page => page.strokes));
+        
+        // Use notesService to save to MongoDB
+        await notesService.updateNote(String(currentNote.id), {
+          content: allPagesData
+        });
+        
+        Alert.alert('Success', 'Note saved successfully!');
+        
+        // Call the original onSave if provided for navigation
+        if (onSave) {
+          onSave(allPagesData, Number(currentNote.folderId), Number(currentNote.id));
+        }
+      } else {
+        Alert.alert("Save Error", "Cannot save note. Missing folder or note ID.");
+      }
+    } catch (error) {
+      console.error('Error saving note:', error);
+      Alert.alert('Error', 'Failed to save note. Please try again.');
+    }
+  };
+
+  // Voice recognition handlers
+  const startVoiceRecognition = async () => {
+    if (!voiceEnabled) {
+      Alert.alert('Voice Recognition', 'Voice recognition is not available on this device.');
+      return;
+    }
+
+    try {
+      const success = await voiceRecognitionService.startWithOptions({
+        language: 'en-US',
+        continuous: false,
+        interimResults: true,
+        maxAlternatives: 1,
+      });
+      
+      if (!success) {
+        Alert.alert('Error', 'Failed to start voice recognition.');
+      }
+    } catch (error) {
+      console.error('Error starting voice recognition:', error);
+      Alert.alert('Error', 'Failed to start voice recognition.');
+    }
+  };
+
+  const stopVoiceRecognition = async () => {
+    try {
+      await voiceRecognitionService.stop();
+    } catch (error) {
+      console.error('Error stopping voice recognition:', error);
+    }
+  };
+
+  const insertVoiceText = () => {
+    if (voiceText.trim()) {
+      // Add voice text to pending text for handwriting recognition
+      setPendingText(prev => prev + ' ' + voiceText.trim());
+      setVoiceText('');
+    }
+  };
+
+  const speakText = async (text: string) => {
+    try {
+      await voiceRecognitionService.speak(text, {
+        language: 'en-US',
+        rate: 1.0,
+        pitch: 1.0,
+      });
+    } catch (error) {
+      console.error('Error speaking text:', error);
+      Alert.alert('Error', 'Failed to speak text.');
     }
   };
 
   // Add a handler to insert a space in alphabet mode
   const handleInsertSpace = () => {
     setPendingText(prev => prev + ' ');
+  };
+
+  // Handle voice text insertion
+  const handleVoiceTextInsert = () => {
+    insertVoiceText();
   };
 
   // When recognition result comes in, append only the new character(s) to pendingText in alphabet mode
@@ -182,6 +263,47 @@ export default function NotesScreen({ initialNotes = [], onBack, onSave, onNoteC
       setInsertedShape(null);
     }
   }, [activeTool]);
+
+  // Initialize voice recognition
+  useEffect(() => {
+    const initVoice = async () => {
+      const callbacks: VoiceRecognitionCallbacks = {
+        onStart: () => {
+          setIsListening(true);
+          console.log('Voice recognition started');
+        },
+        onEnd: () => {
+          setIsListening(false);
+          console.log('Voice recognition ended');
+        },
+        onResults: (results) => {
+          if (results && results.length > 0) {
+            setVoiceText(results[0]);
+            console.log('Voice recognition results:', results[0]);
+          }
+        },
+        onError: (error) => {
+          setIsListening(false);
+          console.error('Voice recognition error:', error);
+          Alert.alert('Voice Recognition Error', error);
+        },
+        onPartialResults: (results) => {
+          if (results && results.length > 0) {
+            setVoiceText(results[0]);
+          }
+        },
+      };
+
+      const initialized = await voiceRecognitionService.initialize(callbacks);
+      setVoiceEnabled(initialized);
+    };
+
+    initVoice();
+
+    return () => {
+      voiceRecognitionService.destroy();
+    };
+  }, []);
 
   // Load settings from AsyncStorage on mount
   useEffect(() => {
@@ -267,6 +389,34 @@ export default function NotesScreen({ initialNotes = [], onBack, onSave, onNoteC
           </View>
         ))}
       </ScrollView>
+      {/* Voice Recognition Controls */}
+      {voiceEnabled && (
+        <View style={styles.voiceControls}>
+          <TouchableOpacity
+            style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
+            onPress={isListening ? stopVoiceRecognition : startVoiceRecognition}
+          >
+            <Ionicons 
+              name={isListening ? "stop" : "mic"} 
+              size={24} 
+              color={isListening ? "#fff" : "#007AFF"} 
+            />
+          </TouchableOpacity>
+          
+          {voiceText && (
+            <View style={styles.voiceTextContainer}>
+              <Text style={styles.voiceText}>{voiceText}</Text>
+              <TouchableOpacity style={styles.insertVoiceButton} onPress={handleVoiceTextInsert}>
+                <Text style={styles.insertVoiceButtonText}>Insert</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.speakButton} onPress={() => speakText(voiceText)}>
+                <Ionicons name="volume-high" size={20} color="#4CAF50" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+      
       {/* Settings Modal */}
       {settingsVisible && (
         <View style={styles.modalOverlay}>
@@ -798,6 +948,66 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  voiceControls: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  voiceButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  voiceButtonActive: {
+    backgroundColor: '#FF3B30',
+    borderColor: '#FF3B30',
+  },
+  voiceTextContainer: {
+    marginTop: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    maxWidth: 200,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  voiceText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 8,
+  },
+  insertVoiceButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 4,
+  },
+  insertVoiceButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  speakButton: {
+    alignSelf: 'center',
+    padding: 4,
   },
   fab: {
     position: 'absolute',

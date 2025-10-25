@@ -5,6 +5,7 @@ import Voice, {
   SpeechStartEvent,
   SpeechEndEvent,
 } from '@react-native-voice/voice';
+import * as Speech from 'expo-speech';
 
 export interface VoiceRecognitionCallbacks {
   onStart?: () => void;
@@ -12,6 +13,20 @@ export interface VoiceRecognitionCallbacks {
   onResults?: (results: string[]) => void;
   onError?: (error: string) => void;
   onPartialResults?: (results: string[]) => void;
+}
+
+export interface SpeechToTextOptions {
+  language?: string;
+  continuous?: boolean;
+  interimResults?: boolean;
+  maxAlternatives?: number;
+}
+
+export interface TextToSpeechOptions {
+  language?: string;
+  pitch?: number;
+  rate?: number;
+  voice?: string;
 }
 
 class VoiceRecognitionService {
@@ -231,10 +246,112 @@ class VoiceRecognitionService {
         return false;
       }
       const recognizingVal = await Voice.isRecognizing();
-      // Voice.isRecognizing() may return a number (0/1) or a boolean depending on platform; normalize to boolean
       return Boolean(recognizingVal);
     } catch (error) {
       console.error('Error checking recognition status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Enhanced speech recognition with options
+   */
+  async startWithOptions(options: SpeechToTextOptions = {}): Promise<boolean> {
+    const {
+      language = 'en-US',
+      continuous = false,
+      interimResults = true,
+      maxAlternatives = 1
+    } = options;
+
+    try {
+      if (!this.isInitialized) {
+        throw new Error('Voice recognition not initialized. Call initialize() first.');
+      }
+
+      const hasPermission = await this.requestMicrophonePermission();
+      if (!hasPermission) {
+        throw new Error('Microphone permission is required for voice recognition');
+      }
+
+      await Voice.start(language, {
+        EXTRA_LANGUAGE_MODEL: 'LANGUAGE_MODEL_FREE_FORM',
+        EXTRA_CALLING_PACKAGE: 'com.anonymous.digitalinkrecognitionapp',
+        EXTRA_PARTIAL_RESULTS: interimResults,
+        EXTRA_MAX_RESULTS: maxAlternatives,
+        REQUEST_PERMISSIONS_AUTO: true,
+      });
+
+      console.log('Enhanced voice recognition started with options:', options);
+      return true;
+    } catch (error) {
+      console.error('Error starting enhanced voice recognition:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start voice recognition';
+      this.callbacks.onError?.(errorMessage);
+      return false;
+    }
+  }
+
+  /**
+   * Text-to-speech functionality
+   */
+  async speak(text: string, options: TextToSpeechOptions = {}): Promise<void> {
+    const {
+      language = 'en-US',
+      pitch = 1.0,
+      rate = 1.0,
+      voice
+    } = options;
+
+    try {
+      const speechOptions: Speech.SpeechOptions = {
+        language,
+        pitch,
+        rate,
+        voice,
+      };
+
+      await Speech.speak(text, speechOptions);
+      console.log('Text-to-speech completed:', text);
+    } catch (error) {
+      console.error('Error in text-to-speech:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop text-to-speech
+   */
+  async stopSpeaking(): Promise<void> {
+    try {
+      await Speech.stop();
+      console.log('Text-to-speech stopped');
+    } catch (error) {
+      console.error('Error stopping text-to-speech:', error);
+    }
+  }
+
+  /**
+   * Get available voices for text-to-speech
+   */
+  async getAvailableVoices(): Promise<Speech.Voice[]> {
+    try {
+      const voices = await Speech.getAvailableVoicesAsync();
+      return voices;
+    } catch (error) {
+      console.error('Error getting available voices:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if text-to-speech is currently speaking
+   */
+  async isSpeaking(): Promise<boolean> {
+    try {
+      return await Speech.isSpeakingAsync();
+    } catch (error) {
+      console.error('Error checking speech status:', error);
       return false;
     }
   }
