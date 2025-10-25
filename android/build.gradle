@@ -1,0 +1,55 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+  ext {
+    buildToolsVersion = "34.0.0"
+    minSdkVersion = 24
+    compileSdkVersion = 34
+    targetSdkVersion = 34
+    ndkVersion = "26.1.10909125"
+    // We use Kotlin plugin from Expo, so we don't need to specify it here.
+    // kotlinVersion = "1.8.10"
+  }
+  ext.kotlin_version = '1.8.10' // Define a stable Kotlin version
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version" // Apply the version
+  }
+}
+
+def reactNativeAndroidDir = new File(
+  providers.exec {
+    workingDir(rootDir)
+    commandLine("node", "--print", "require.resolve('react-native/package.json')")
+  }.standardOutput.asText.get().trim(),
+  "../android"
+)
+
+allprojects {
+  repositories {
+    maven {
+      // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+      url(reactNativeAndroidDir)
+    }
+
+    google()
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+  }
+}
+
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            // This helps resolve a common conflict with duplicate files in AndroidX libraries.
+            project.android.packagingOptions.pickFirsts.add("META-INF/androidx.localbroadcastmanager_localbroadcastmanager.version")
+        }
+    }
+}
+apply plugin: "expo-root-project"
+apply plugin: "com.facebook.react.rootproject"

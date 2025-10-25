@@ -1,0 +1,52 @@
+
+{
+    "expo": {
+      "name": "Digital Ink Recognition App",
+      "slug": "digital-ink-recognition",
+      "version": "1.0.0",
+      "orientation": "portrait",
+      "icon": "./assets/icon.png",
+      "userInterfaceStyle": "light",
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      },
+      "assetBundlePatterns": [
+        "**/*"
+      ],
+      "ios": {
+        "supportsTablet": true,
+        "bundleIdentifier": "com.yourcompany.digitalinkrecognition"
+      },
+      "android": {
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/adaptive-icon.png",
+          "backgroundColor": "#FFFFFF"
+        },
+        "package": "com.yourcompany.digitalinkrecognition"
+      },
+      "web": {
+        "favicon": "./assets/favicon.png"
+      },
+      "plugins": [
+        [
+          "expo-build-properties",
+          {
+            "android": {
+              "compileSdkVersion": 34,
+              "targetSdkVersion": 34,
+              "buildToolsVersion": "34.0.0"
+            }
+          }
+        ],
+        "./app.config.js"
+      ],
+      "extra": {
+        "eas": {
+          "projectId": "your-project-id"
+        }
+      }
+    }
+  }
+  

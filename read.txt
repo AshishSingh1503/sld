@@ -1,0 +1,70 @@
+Create a horizontal scrollable toolbar panel for React Native using Expo Dev Client with the following specifications:
+
+**Tech Stack & Libraries:**
+- React Native with Expo Dev Client
+- Use @expo/vector-icons for consistent iconography
+- Implement with ScrollView for horizontal scrolling
+- Use react-native-reanimated for smooth animations
+- Consider react-native-gesture-handler for enhanced touch interactions
+
+**Component Structure:**
+
+1. **Container Setup:**
+   - Horizontal ScrollView with showsHorizontalScrollIndicator={false}
+   - Fixed height container (50-60px recommended)
+   - Implement contentContainerStyle for proper spacing
+   - Add horizontal padding and item spacing
+
+2. **Tool Groups with Separators:**
+
+   **Group 1: History Actions**
+   - Undo button (MaterialIcons: 'undo' or Ionicons: 'arrow-undo')
+   - Redo button (MaterialIcons: 'redo' or Ionicons: 'arrow-redo')
+   - Vertical separator line (1px width, 60% height, gray color)
+
+   **Group 2: Drawing & Editing Tools**
+   - Pen tool (MaterialIcons: 'edit' or Ionicons: 'pencil')
+   - Highlighter (MaterialIcons: 'highlight' or custom highlighter icon)
+   - Eraser (MaterialIcons: 'clear' or FontAwesome: 'eraser')
+   - Lasso selection (MaterialIcons: 'select-all' or custom lasso icon)
+   - Shapes selector (MaterialIcons: 'category' or Ionicons: 'shapes')
+   - Text box (MaterialIcons: 'text-fields' or Ionicons: 'text')
+   - Table insertion (MaterialIcons: 'table-chart' or 'grid-on')
+   - Vertical separator line
+
+3. **Functionality Requirements:**
+   - Each button should have TouchableOpacity wrapper
+   - Implement activeOpacity={0.7} for touch feedback
+   - Add state management for active/selected tools
+   - Include haptic feedback using Expo.Haptics for better UX
+   - Implement onPress handlers for each tool
+
+4. **Styling & UX:**
+   - Use consistent button sizes (40x40px or 44x44px for better touch targets)
+   - Implement active state with background color change or border
+   - Add subtle shadow or elevation for depth
+   - Use theme-based colors that work with light/dark modes
+   - Smooth scrolling with decelerationRate="fast"
+
+5. **Performance Optimizations:**
+   - Use FlatList if you plan to have many more tools in future
+   - Implement lazy loading for complex tool configurations
+   - Consider using react-native-super-grid for grid-based layouts if needed
+
+6. **Accessibility:**
+   - Add accessibilityLabel for each tool
+   - Implement accessibilityRole="button"
+   - Ensure proper contrast ratios for icons
+
+**Native Module Considerations:**
+- If using custom drawing functionality, mention integration with react-native-svg
+- For advanced gestures, utilize react-native-gesture-handler
+- Consider expo-gl or expo-gl-cpp for advanced graphics operations
+
+**Code Structure:**
+- Create reusable ToolButton component
+- Implement custom hook for toolbar state management
+- Use TypeScript interfaces for tool configurations
+- Export toolbar as a customizable component with props for tool visibility
+
+Make the component flexible enough to easily add/remove tools and maintain consistent styling across the entire toolbar.
