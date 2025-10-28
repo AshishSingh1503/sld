@@ -9,10 +9,8 @@
     "userInterfaceStyle": "light",
     "scheme": "com.anonymous.digitalinkrecognitionapp",
     "extra": {
-      "SUPABASE_URL": "https://ltvbirplabbbaqpucgvf.supabase.co",
-      "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dmJpcnBsYWJiYmFxcHVjZ3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NzAxNTEsImV4cCI6MjA2OTA0NjE1MX0.92oi-OlnwwwTtqldQxFcuiiVlM3Qcgu1OgMAPiTWYkU",
-      "googleWebClientId": "245972310529-qu72crbbfbnmopje2ec415u5vj5fdk09.apps.googleusercontent.com",
-      "googleAndroidClientId": "245972310529-a6h6ij43e3va1a03op8ovuv84vlnuar2.apps.googleusercontent.com"
+      "MONGODB_URI": "mongodb://localhost:27017/sld_app",
+      "JWT_SECRET": "your-super-secret-jwt-key-change-this-in-production"
     },
     "splash": {
       "image": "./assets/splash-icon.png",

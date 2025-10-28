@@ -25,7 +25,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AuthScreen from './components/login/AuthScreen';
 import { authService } from './services/authService';
-import { User } from '@supabase/supabase-js'; // Ensure this import is present
+import { notesService, FolderData } from './services/notesService';
 import Settings from './components/screens/Settings';
 
 const Stack = createStackNavigator();
@@ -330,7 +330,7 @@ function NotesListScreen({ folder, folders, setFolders, onBack, onOpenNote }: { 
 }
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -341,13 +341,13 @@ export default function App() {
     });
 
     // Subscribe to auth state changes (e.g., sign in, sign out)
-    const subscription = authService.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const subscription = authService.onAuthStateChange((_event, user) => {
+      setUser(user);
     });
 
     // Clean up the subscription when the component unmounts
     return () => {
-      subscription?.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -373,56 +373,61 @@ export default function App() {
 
 // Move your current App logic to MainApp
 function MainApp() {
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const [folders, setFolders] = useState<FolderData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // This effect ensures the "Recent Notes" folder exists on app startup.
+  // Load folders from MongoDB on app startup
   useEffect(() => {
     (async () => {
-      const loadedFolders = await loadFoldersFromStorage();
-      const recentNotesFolderExists = loadedFolders.some(f => f.id === 0);
-
-      if (!recentNotesFolderExists) {
-        const recentNotesFolder: Folder = {
-          id: 0, // A fixed ID for easy reference
-          name: 'Recent Notes',
-          color: '#87CEEB', // A nice default color
-          lastModified: 'Just now',
-          icon: 'time-outline',
-          notes: [],
-        };
-        setFolders([recentNotesFolder, ...loadedFolders]);
-      } else {
+      try {
+        // Initialize default folders for new users
+        await notesService.initializeDefaultFolders();
+        
+        // Load all folders
+        const loadedFolders = await notesService.getFolders();
         setFolders(loadedFolders);
+      } catch (error) {
+        console.error('Error loading folders:', error);
+        Alert.alert('Error', 'Failed to load folders. Please try again.');
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
 
-  useEffect(() => {
-    if (folders.length > 0) {
-      saveAllFoldersToStorage(folders);
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  const handleCreateNewNoteFromHome = async (navigation: any) => {
+    try {
+      const recentNotesFolder = folders.find(f => f.name === 'Recent Notes');
+      if (!recentNotesFolder) {
+        Alert.alert("Error", "Could not find the 'Recent Notes' folder. Please restart the app.");
+        return;
+      }
+
+      const newNote = await notesService.createNote(
+        recentNotesFolder.id,
+        `New Note ${new Date().toLocaleDateString()}`,
+        '',
+        'handwritten',
+        '#FFEAA7'
+      );
+
+      // Refresh folders to include the new note
+      const updatedFolders = await notesService.getFolders();
+      setFolders(updatedFolders);
+
+      navigation.navigate('Notes', { folderId: recentNotesFolder.id, noteId: newNote.id });
+    } catch (error) {
+      console.error('Error creating note:', error);
+      Alert.alert('Error', 'Failed to create note. Please try again.');
     }
-  }, [folders]);
-
-  const handleCreateNewNoteFromHome = (navigation: any) => {
-    const recentNotesFolder = folders.find(f => f.id === 0);
-    if (!recentNotesFolder) {
-      Alert.alert("Error", "Could not find the 'Recent Notes' folder. Please restart the app.");
-      return;
-    }
-
-    const newNoteId = Date.now();
-    const newNoteObject = {
-      id: newNoteId,
-      name: `New Note ${new Date().toLocaleDateString()}`,
-      color: '#FFEAA7', // A default color for new notes
-      content: '',
-    };
-
-    setFolders(prevFolders => prevFolders.map(f => 
-      f.id === 0 ? { ...f, notes: [...(f.notes || []), newNoteObject] } : f
-    ));
-
-    navigation.navigate('Notes', { folderId: 0, noteId: newNoteId });
   };
 
   return (
